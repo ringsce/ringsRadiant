@@ -6,17 +6,37 @@ import traceback
 import platform
 import re
 import subprocess
-import platform
 import zipfile
 import shutil
+from config_flags import useGtk
 
 if __name__ != '__main__':
     from SCons.Script import *
 
 import utils
 
-GTK_PREFIX='gtk-4.16.12'
-GTK64_PREFIX='gtk-4.16.12_win64'
+# Existing GTK prefixes
+GTK_PREFIX = 'gtk-4.16.12'
+GTK64_PREFIX = 'gtk-4.16.12_win64'
+
+# Add a GTK prefix for macOS Silicon (ARM64) using GTK-4.0
+if platform.system() == 'Darwin' and os.uname().machine in ['arm64', 'arm64e']:
+    GTK_MACOS_SILICON_PREFIX = 'gtk-4.0_macos_silicon'
+else:
+    GTK_MACOS_SILICON_PREFIX = GTK_PREFIX  # fallback
+
+# Example usage:
+# You may later use these prefixes when setting up environment variables,
+# configuring pkg-config, or locating libraries.
+#
+# For instance, if using pkg-config for GTK on macOS Silicon:
+if platform.system() == 'Darwin' and os.uname().machine in ['arm64', 'arm64e']:
+    gtk_prefix = GTK_MACOS_SILICON_PREFIX
+else:
+    # Choose appropriate prefix based on other conditions or platform defaults
+    gtk_prefix = GTK_PREFIX
+
+print("Using GTK prefix:", gtk_prefix)
 
 class Config:
     # aliases
@@ -291,11 +311,11 @@ class Config:
             # this lets us catch libjpg and libpng libraries that we put in the same directory as radiant.bin
             env.Append( LINKFLAGS = '-Wl,-rpath,.' )
             
-        # On Mac, we pad headers so that we may rewrite them for packaging
-        if ( self.platform == 'Darwin' ) :
-            env.Append( CFLAGS = [ '-mmacosx-version-min=11.0' ] )
-            env.Append( CXXFLAGS = [ '-mmacosx-version-min=11.0' ] )
-            env.Append( LINKFLAGS = [ '-headerpad_max_install_names' ] )
+            # On Mac, we pad headers so that we may rewrite them for packaging
+            if ( self.platform == 'Darwin' ) :
+                env.Append( CFLAGS = [ '-mmacosx-version-min=11.0' ] )
+                env.Append( CXXFLAGS = [ '-mmacosx-version-min=11.0' ] )
+                env.Append( LINKFLAGS = [ '-headerpad_max_install_names' ] )
 
     def CheckoutOrUpdate( self, svnurl, path ):
         if ( os.path.exists( path ) ):
