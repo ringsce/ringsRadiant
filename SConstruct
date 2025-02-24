@@ -99,4 +99,4 @@ with open(conf_filename, 'wb') as f:
 print('emit build rules')
 for c in active_configs:
     print('emit configuration: %s' % repr(c))
-    c.emit()  # Call the emit() method on each configuration.
+    c.build()  # Call the emit() method on each configuration.
