@@ -4,29 +4,41 @@
 # http://scons.org/
 
 import os
+import platform
 
-Import( [ 'utils', 'config', 'settings', 'project' ] )
+Import([ 'utils', 'config', 'settings', 'project' ])
 
-( libpath, libname ) = os.path.split( project )
-libname = os.path.splitext( libname )[0]
-env = Environment( ENV = os.environ )
-settings.SetupEnvironment( env, config['name'] )
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), project ) )
+(libpath, libname) = os.path.split(project)
+libname = os.path.splitext(libname)[0]
+env = Environment(ENV=os.environ)
+settings.SetupEnvironment(env, config['name'])
+
+# On macOS ARM64 and Linux ARM64, you might need to add specific flags.
+current_platform = platform.system()
+machine_arch = os.uname().machine if hasattr(os, 'uname') else ''
+if current_platform == 'Darwin' and machine_arch in ['arm64', 'arm64e']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
+elif current_platform == 'Linux' and machine_arch in ['aarch64', 'arm64']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
+
+proj = utils.vcxproj(os.path.join(GetLaunchDir(), project))
 
 # some filtering. may need to improve that
 add_sources = []
-( drop, files ) = proj.filterSource( r'.*l_net_wins\.c' )
-if ( len( drop ) != 0 ):
-	add_sources.append( 'l_net_berkeley.c' )
+(drop, files) = proj.filterSource(r'.*l_net_wins\.c')
+if len(drop) != 0:
+    add_sources.append('l_net_berkeley.c')
 
+# Determine the object emission function.
 emit_func = env.StaticObject
 try:
-	if ( config['shared'] ):
-		emit_func = env.SharedObject
-except:
-	pass
+    if config['shared']:
+        emit_func = env.SharedObject
+except Exception:
+    pass
 
 objects = []
 for i in files + add_sources:
-	objects.append( emit_func( source=os.path.join( libpath, i ) ) )
-Return( 'objects' )
+    objects.append(emit_func(source=os.path.join(libpath, i)))
+
+Return('objects')

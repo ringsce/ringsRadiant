@@ -6,25 +6,43 @@
 import os
 import platform
 
-Import( [ 'utils', 'config', 'settings', 'lib_objects' ] )
+Import(['utils', 'config', 'settings', 'lib_objects'])
 
-env = Environment( ENV = os.environ )
-settings.SetupEnvironment( env, config['name'] )
-env.Prepend( CPPPATH = [ '#tools/quake3/common', ] )
+env = Environment(ENV=os.environ)
+settings.SetupEnvironment(env, config['name'])
+env.Prepend(CPPPATH=['#tools/quake3/common'])
+
+# Append platform-specific libraries
 if platform.system() == "NetBSD":
-    env.Append( LIBS = [ 'm', 'pthread', 'jpeg', 'png16' ] )
+    env.Append(LIBS=['m', 'pthread', 'jpeg', 'png16'])
 else:
-    env.Append( LIBS = [ 'm', 'pthread', 'jpeg', 'png' ] )
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), 'tools/urt/tools/quake3/q3map2/q3map2_urt.vcxproj' ) )
-objects = lib_objects
+    env.Append(LIBS=['m', 'pthread', 'jpeg', 'png'])
 
-def keep_file( n ):
-    for skip in [ 'cmdlib.c', 'imagelib.c', 'inout.c', 'vfs.c', 'mutex.c', 'polylib.c', 'scriplib.c', 'threads.c', 'unzip.c' ]:
-        if ( n.find( skip ) != -1 ):
+# Load the Visual Studio project file for q3map2_urt
+proj_path = os.path.join(GetLaunchDir(), 'tools/urt/tools/quake3/q3map2', 'q3map2_urt.vcxproj')
+proj = utils.vcxproj(proj_path)
+
+# Start with a copy of lib_objects
+objects = lib_objects[:]
+
+# Define a filtering function to exclude unwanted files
+def keep_file(n):
+    unwanted = [
+        'cmdlib.c', 'imagelib.c', 'inout.c', 'vfs.c',
+        'mutex.c', 'polylib.c', 'scriplib.c', 'threads.c', 'unzip.c'
+    ]
+    for skip in unwanted:
+        if skip in n:
             return False
     return True
 
-objects += list(filter( keep_file, [ os.path.join( 'tools/urt/tools/quake3/q3map2', i ) for i in proj.getSourceFiles() ] ))
-q3map2_urt = env.Program( 'q3map2_urt', objects )
+# Build full paths for each source file from the project,
+# and filter out unwanted files.
+src_files = [os.path.join('tools/urt/tools/quake3/q3map2', src) for src in proj.getSourceFiles()]
+filtered_files = list(filter(keep_file, src_files))
+objects += filtered_files
 
-Return( 'q3map2_urt' )
+# Build the q3map2_urt executable
+q3map2_urt = env.Program('q3map2_urt', objects)
+
+Return('q3map2_urt')

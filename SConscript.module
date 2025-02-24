@@ -4,29 +4,48 @@
 # http://scons.org/
 
 import os
+import platform
 
-Import( [ 'utils', 'config', 'settings', 'project', 'shlib_objects' ] )
+Import([ 'utils', 'config', 'settings', 'project', 'shlib_objects' ])
 
-( libpath, libname ) = os.path.split( project )
-libname = os.path.splitext( libname )[0]
+(libpath, libname) = os.path.split(project)
+libname = os.path.splitext(libname)[0]
 
-env = Environment( ENV = os.environ )
+env = Environment(ENV=os.environ)
 
 useJPEG = True
 useGtk = True
 useZ = True
 usePNG = True
 
-settings.SetupEnvironment( env, config['name'], useGtk = useGtk, useJPEG = useJPEG, useZ = useZ, usePNG = usePNG )
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), project ) )
+# Setup environment with extra options
+settings.SetupEnvironment(env, config['name'],
+                            useGtk=useGtk,
+                            useJPEG=useJPEG,
+                            useZ=useZ,
+                            usePNG=usePNG)
 
-# some filtering. may need to improve that
+# Optionally add ARM64-specific flags for macOS and Linux
+current_platform = platform.system()
+machine_arch = os.uname().machine if hasattr(os, 'uname') else ''
+if current_platform == 'Darwin' and machine_arch in ['arm64', 'arm64e']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
+elif current_platform == 'Linux' and machine_arch in ['aarch64', 'arm64']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
+
+proj = utils.vcxproj(os.path.join(GetLaunchDir(), project))
+
+# Some filtering. May need to improve that.
 add_sources = []
-( drop, files ) = proj.filterSource( r'.*l_net_wins\.c' )
-if ( len( drop ) != 0 ):
-	add_sources.append( 'l_net_berkeley.c' )
+(drop, files) = proj.filterSource(r'.*l_net_wins\.c')
+if len(drop) != 0:
+    add_sources.append('l_net_berkeley.c')
 
-module_base = env.SharedLibrary( os.path.join( 'modules', libname ), shlib_objects + [ os.path.join( libpath, i ) for i in files ] )
-module = env.AddPostAction( module_base, utils.CheckUnresolved )
+# Build shared library module from shlib_objects and the source files.
+all_sources = shlib_objects + [ os.path.join(libpath, i) for i in files + add_sources ]
+module_base = env.SharedLibrary(os.path.join('modules', libname), all_sources)
 
-Return( 'module' )
+# Add a post-action to check for unresolved symbols.
+module = env.AddPostAction(module_base, utils.CheckUnresolved)
+
+Return('module')

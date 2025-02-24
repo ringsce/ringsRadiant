@@ -6,18 +6,30 @@
 import os
 import platform
 
-Import( [ 'utils', 'config', 'settings', 'lib_objects' ] )
+Import(['utils', 'config', 'settings', 'lib_objects'])
 
-env = Environment( ENV = os.environ )
-settings.SetupEnvironment( env, config['name'] )
-env.Prepend( CPPPATH = [ '#tools/quake3/common' ] )
+# Set up the environment
+env = Environment(ENV=os.environ)
+settings.SetupEnvironment(env, config['name'])
+
+# Add include paths for common Quake 3 tools
+env.Prepend(CPPPATH=['#tools/quake3/common'])
+
+# Append platform-specific libraries
 if platform.system() == "NetBSD":
-    env.Append( LIBS = [ 'm', 'pthread', 'jpeg', 'png16' ] )
+    env.Append(LIBS=['m', 'pthread', 'jpeg', 'png16'])
 else:
-    env.Append( LIBS = [ 'm', 'pthread', 'jpeg', 'png' ] )
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), 'tools/quake3/q3map2/q3map2.vcxproj' ) )
-objects = lib_objects
-objects += [ os.path.join( 'tools/quake3/q3map2', i ) for i in proj.getSourceFiles() ]
-q3map2 = env.Program( 'q3map2', objects )
+    env.Append(LIBS=['m', 'pthread', 'jpeg', 'png'])
 
-Return( 'q3map2' )
+# Load the Visual Studio project file for q3map2
+proj = utils.vcxproj(os.path.join(GetLaunchDir(), 'tools/quake3/q3map2/q3map2.vcxproj'))
+
+# Gather object files
+objects = lib_objects[:]
+objects += [os.path.join('tools/quake3/q3map2', src) for src in proj.getSourceFiles()]
+
+# Compile the q3map2 executable
+q3map2 = env.Program('q3map2', objects)
+
+# Return the target for use by other scripts
+Return('q3map2')

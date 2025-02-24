@@ -6,16 +6,27 @@
 import os
 import platform
 
-Import( [ 'utils', 'config', 'settings', 'lib_objects' ] )
+Import(['utils', 'config', 'settings', 'lib_objects'])
 
-env = Environment( ENV = os.environ )
-settings.SetupEnvironment( env, config[ 'name' ], useGtk = True, useGtkGL = True )
+env = Environment(ENV=os.environ)
+settings.SetupEnvironment(env, config['name'], useGtk=True, useGtkGL=True)
 
-if ( platform.system() not in ['FreeBSD', 'OpenBSD', 'NetBSD'] ):
-	env.Append( LIBS = [ 'dl' ] )
+# On non-BSD systems, append the 'dl' library.
+if platform.system() not in ['FreeBSD', 'OpenBSD', 'NetBSD']:
+    env.Append(LIBS=['dl'])
 
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), 'radiant/radiant.vcxproj' ) )
+# Optionally, add ARM64-specific flags for macOS or Linux (if required)
+current_platform = platform.system()
+machine_arch = os.uname().machine if hasattr(os, 'uname') else ''
+if current_platform == 'Darwin' and machine_arch in ['arm64', 'arm64e']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
+elif current_platform == 'Linux' and machine_arch in ['aarch64', 'arm64']:
+    env.Append(CFLAGS=['-march=armv8-a'], CXXFLAGS=['-march=armv8-a'])
 
-radiant = env.Program( 'radiant.bin', lib_objects + [ os.path.join( 'radiant', i ) for i in proj.getSourceFiles() ] )
+proj = utils.vcxproj(os.path.join(GetLaunchDir(), 'radiant', 'radiant.vcxproj'))
 
-Return( 'radiant' )
+# Build the radiant executable from lib_objects and the source files obtained from the vcxproj.
+radiant_sources = lib_objects + [os.path.join('radiant', src) for src in proj.getSourceFiles()]
+radiant = env.Program('radiant.bin', radiant_sources)
+
+Return('radiant')

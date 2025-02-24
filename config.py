@@ -312,10 +312,16 @@ class Config:
             env.Append( LINKFLAGS = '-Wl,-rpath,.' )
             
             # On Mac, we pad headers so that we may rewrite them for packaging
-            if ( self.platform == 'Darwin' ) :
-                env.Append( CFLAGS = [ '-mmacosx-version-min=11.0' ] )
-                env.Append( CXXFLAGS = [ '-mmacosx-version-min=11.0' ] )
-                env.Append( LINKFLAGS = [ '-headerpad_max_install_names' ] )
+            if self.platform == 'Darwin':
+                env.Append(CFLAGS=['-mmacosx-version-min=11.0'])
+                env.Append(CXXFLAGS=['-mmacosx-version-min=11.0'])
+                env.Append(LINKFLAGS=['-headerpad_max_install_names'])
+            # On Linux ARM64, add any specific flags if needed
+            elif self.platform == 'Linux' and os.uname().machine in ['aarch64', 'arm64']:
+                # Example: set a minimum glibc version if needed, or any architecture-specific flag
+                # Adjust the flags below as appropriate for your Linux ARM64 build environment.
+                env.Append(CFLAGS=['-march=armv8-a'])
+                env.Append(CXXFLAGS=['-march=armv8-a'])
 
     def CheckoutOrUpdate( self, svnurl, path ):
         if ( os.path.exists( path ) ):

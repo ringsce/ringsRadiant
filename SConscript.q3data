@@ -5,15 +5,25 @@
 
 import os
 
-Import( [ 'utils', 'config', 'settings', 'lib_objects' ] )
+Import(['utils', 'config', 'settings', 'lib_objects'])
 
-env = Environment( ENV = os.environ )
-settings.SetupEnvironment( env, config['name'] )
-env.Prepend( CPPPATH = [ '#tools/quake3/common' ] )
-env.Append( LIBS = [ 'm', 'pthread' ] )
-proj = utils.vcxproj( os.path.join( GetLaunchDir(), 'tools/quake3/q3data/q3data.vcxproj' ) )
-objects = lib_objects
-objects += [ os.path.join( 'tools/quake3/q3data', i ) for i in proj.getSourceFiles() ]
-q3data = env.Program( 'q3data', objects )
+env = Environment(ENV=os.environ)
+settings.SetupEnvironment(env, config['name'])
 
-Return( 'q3data' )
+# Prepend include paths for common quake3 headers.
+env.Prepend(CPPPATH=['#tools/quake3/common'])
+# Append libraries (math and pthread).
+env.Append(LIBS=['m', 'pthread'])
+
+# Get the Visual Studio project file for q3data.
+proj = utils.vcxproj(os.path.join(GetLaunchDir(), 'tools/quake3/q3data/q3data.vcxproj'))
+
+# Start with lib_objects, and then add the source files found in the project.
+objects = lib_objects[:]
+# Build full paths for each source file in the q3data project.
+objects += [ os.path.join('tools/quake3/q3data', src) for src in proj.getSourceFiles() ]
+
+# Build the q3data executable.
+q3data = env.Program('q3data', objects)
+
+Return('q3data')
