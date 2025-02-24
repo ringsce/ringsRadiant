@@ -23,37 +23,40 @@ class Config:
     # 'all' -> for each choices
     # 'gamecode' for the targets, 'game' 'cgame' 'ui'
 
-    def __init__( self ):
-        # initialize defaults
-        self.target_selected = [ 'radiant', 'q3map2', 'q3data', 'setup' ]
-        self.config_selected = [ 'release' ]
-        # those are global to each config
-        self.platform = platform.system()
-        if ( self.platform in ['FreeBSD', 'OpenBSD', 'NetBSD'] ):
-            self.cc = 'cc'
-            self.cxx = 'c++'
-        else:
-            self.cc = 'gcc'
-            self.cxx = 'g++'
-        self.install_directory = 'install'
+   def __init__(self):
+    # initialize defaults
+    self.target_selected = ['radiant', 'q3map2', 'q3data', 'setup']
+    self.config_selected = ['release']
+    
+    # those are global to each config
+    self.platform = platform.system()
+    if self.platform in ['FreeBSD', 'OpenBSD', 'NetBSD']:
+        self.cc = 'cc'
+        self.cxx = 'c++'
+    else:
+        self.cc = 'gcc'
+        self.cxx = 'g++'
+    
+    self.install_directory = 'install'
 
-        # platforms for which to assemble a setup
-        self.setup_platforms = [ 'local', 'x86', 'x64', 'aarch64', 'win32' ]
-        # paks to assemble in the setup
-        self.setup_packs = [
-                        'Q3Pack',
-                        'UrTPack',
-                        'ETPack',
-                        'QLPack',
-                        'Q2Pack',
-                        'QuetooPack',
-                        'JAPack',
-                        'STVEFPack',
-                        'WolfPack',
-                        'UnvanquishedPack',
-                        'Q1Pack',
-                        'Q2RePack',
-        ]
+    # platforms for which to assemble a setup
+    self.setup_platforms = ['local', 'x86', 'x64', 'linux-x64', 'aarch64', 'win32', 'macos-m1', 'linux-arm64']
+
+    # paks to assemble in the setup
+    self.setup_packs = [
+        'Q3Pack',
+        'UrTPack',
+        'ETPack',
+        'QLPack',
+        'Q2Pack',
+        'QuetooPack',
+        'JAPack',
+        'STVEFPack',
+        'WolfPack',
+        'UnvanquishedPack',
+        'Q1Pack',
+        'Q2RePack',
+    ]
 
     def __repr__( self ):
         return 'config: target=%s config=%s' % ( self.target_selected, self.config_selected )
@@ -241,38 +244,48 @@ class Config:
         if ( platform.system() == "NetBSD" ) :
             baseflags = [ '-I/usr/X11R7/include', '-I/usr/include', '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden', xml2.strip().split( ' ' ) ]
 
-        if ( platform.system() in ['OpenBSD', 'FreeBSD', 'NetBSD'] ) :
-            baseflags += ['-D__BSD__']
-        if ( useGtk ):
-            env.ParseConfig( 'pkg-config gtk+-2.0 --cflags --libs' )
-            env.ParseConfig( 'pkg-config x11 --cflags --libs' )
-        else:
-            # always setup at least glib
-            env.ParseConfig( 'pkg-config glib-2.0 --cflags --libs' )
+        if platform.system() in ['OpenBSD', 'FreeBSD', 'NetBSD']:
+        baseflags += ['-D__BSD__']
 
-        if ( useGtkGL ):
-            env.ParseConfig( 'pkg-config glu --cflags --libs' )
-            env.ParseConfig( 'pkg-config gtkglext-1.0 --cflags --libs' )
+    if useGtk:
+        env.ParseConfig('pkg-config gtk4 --cflags --libs')
+        env.ParseConfig('pkg-config x11 --cflags --libs')
+    else:
+        # always setup at least glib
+        env.ParseConfig('pkg-config glib-2.0 --cflags --libs')
+
+    if useGtkGL:
+        env.ParseConfig('pkg-config mesa-glu --cflags --libs')
+        env.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
+
+    # For macOS M1+ using Homebrew packages
+    if platform.system() == 'Darwin':
+        # Check if running on M1+ architecture
+        if os.uname().machine in ['arm64', 'arm64e']:
+            env.ParseConfig('pkg-config freeglut --cflags --libs')
+            env.ParseConfig('pkg-config glew --cflags --libs')
+
+
         if ( useJPEG ):
-            env.Append( LIBS = 'jpeg' )
+                env.Append( LIBS = 'jpeg' )
         if ( usePNG ):
-            pnglibs = 'png'
-            if ( self.platform == 'NetBSD'):
-                pnglibs = 'png16'
-            env.Append( LIBS = pnglibs.split( ' ' ) )
-            env.ParseConfig( 'pkg-config zlib --cflags --libs' )
-            if ( useZ ):
+                pnglibs = 'png'
+                if ( self.platform == 'NetBSD'):
+                    pnglibs = 'png16'
+                env.Append( LIBS = pnglibs.split( ' ' ) )
                 env.ParseConfig( 'pkg-config zlib --cflags --libs' )
+                if ( useZ ):
+                    env.ParseConfig( 'pkg-config zlib --cflags --libs' )
 
-        env.Append( CCFLAGS = baseflags )
-        env.Append( CXXFLAGS = baseflags + [ '-fpermissive', '-fvisibility-inlines-hidden' ] )
-        env.Append( CPPPATH = [ 'include', 'libs' ] )
-        env.Append( CPPDEFINES = [ 'Q_NO_STLPORT' ] )
-        if ( config == 'debug' ):
-            env.Append( CFLAGS = [ '-g' ] )
-            env.Append( CXXFLAGS = [ '-g' ] )
-            env.Append( CPPDEFINES = [ '_DEBUG' ] )
-        else:
+            env.Append( CCFLAGS = baseflags )
+            env.Append( CXXFLAGS = baseflags + [ '-fpermissive', '-fvisibility-inlines-hidden' ] )
+            env.Append( CPPPATH = [ 'include', 'libs' ] )
+            env.Append( CPPDEFINES = [ 'Q_NO_STLPORT' ] )
+            if ( config == 'debug' ):
+                env.Append( CFLAGS = [ '-g' ] )
+                env.Append( CXXFLAGS = [ '-g' ] )
+                env.Append( CPPDEFINES = [ '_DEBUG' ] )
+            else:
             env.Append( CFLAGS = [ '-O2', '-g', '-fno-strict-aliasing' ] )
             env.Append( CXXFLAGS = [ '-O2', '-g', '-fno-strict-aliasing' ] )
 
