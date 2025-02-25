@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.TTimo.GtkRadiant</id>
-  <name>GtkRadiant</name>
+  <id>io.github.ringsce.ringsRadiant</id>
+  <name>ringsRadiant</name>
   <content_rating type="oars-1.1" />
   <summary>Level editor for ID Tech based games including Quake series</summary>
-  <developer_name>Timothee "TTimo" Besset</developer_name>
+  <developer_name>Pedro Dias Vicente</developer_name>
   <url type="homepage">https://icculus.org/gtkradiant/</url>
   <url type="bugtracker">https://github.com/TTimo/GtkRadiant/issues</url>
   <url type="help">https://icculus.org/gtkradiant/documentation.html</url>

@@ -1,11 +1,11 @@
 [Desktop Entry]
 Version=1.0
-Name=GtkRadiant
-GenericName=GtkRadiant
+Name=ringsRadiant
+GenericName=ringsRadiant
 Type=Application
 Comment=Level editor for ID Tech based games including Quake series.
-Icon=io.github.TTimo.GtkRadiant
-Exec=gtkradiant
+Icon=io.github.ringsce.GtkRadiant
+Exec=ringsradiant
 Terminal=false
 StartupNotify=false
 Keywords=multi;engine;level editor;quake;id tech;
