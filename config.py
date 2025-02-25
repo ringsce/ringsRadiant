@@ -264,96 +264,138 @@ class Config:
             q3data = SConscript( os.path.join( build_dir, 'SConscript.q3data' ) )
             Default( InstallAs( os.path.join( self.install_directory, 'q3data' ), q3data ) )
 
-    def emit( self ):
-        if 'radiant' in self.target_selected:
-                self.emit_radiant()
-        if 'q3map2' in self.target_selected:
-                self.emit_q3map2( urt = False )
-                self.emit_q3map2( urt = True )
-        if 'q3data' in self.target_selected:
-                self.emit_q3data()
-        if 'setup' in self.target_selected:
-                self.Setup()
+def emit(self):
+    if 'radiant' in self.target_selected:
+        self.emit_radiant()
+    if 'q3map2' in self.target_selected:
+        self.emit_q3map2(urt=False)
+        self.emit_q3map2(urt=True)
+    if 'q3data' in self.target_selected:
+        self.emit_q3data()
+    if 'setup' in self.target_selected:
+        self.Setup()
 
-        if ( self.platform == 'Linux' ):
-            finish_command = Command( 'finish', [], self.FinishBuild )
-            Depends( finish_command, DEFAULT_TARGETS )
-            Default( finish_command )
+    # Determine if we are on one of the target architectures/platforms for a finish step
+    target_platforms = ['Linux', 'macos-m1', 'windows-arm64', 'windows-x86_64']
+    current = self.platform
+    # Extend for ARM64 on Linux and macOS Silicon by checking extra flags
+    if current == 'Linux' and ('linux-arm64' in self.platforms):
+        current = 'linux-arm64'
+    elif current == 'Darwin' and ('macos-m1' in self.platforms):
+        current = 'macos-m1'
+    elif current == 'Windows' and ('windows-arm64' in self.platforms):
+        current = 'windows-arm64'
+    elif current == 'Windows' and ('windows-x86_64' in self.platforms):
+        current = 'windows-x86_64'
 
-    def SetupEnvironment( self, env, config, useGtk = False, useGtkGL = False, useJPEG = False, useZ = False, usePNG = False ):
-        env['CC'] = self.cc
-        env['CXX'] = self.cxx
+    if current in target_platforms:
+        finish_command = Command('finish', [], self.FinishBuild)
+        Depends(finish_command, DEFAULT_TARGETS)
+        Default(finish_command)
+
+    def SetupEnvironment(self, env, config, useGtk=False, useGtkGL=False, useJPEG=False, useZ=False, usePNG=False, useGTK4=True, useClang=False):
+        # Compiler selection
+        if useClang:
+            env['CC'] = 'clang'
+            env['CXX'] = 'clang++'
+        else:
+            env['CC'] = self.cc
+            env['CXX'] = self.cxx
+
+        import subprocess
         try:
-            xml2 = subprocess.check_output( ['pkg-config', '--cflags', 'libxml-2.0'] ).decode( 'utf-8' )
+            xml2 = subprocess.check_output(['pkg-config', '--cflags', 'libxml-2.0']).decode('utf-8')
         except subprocess.CalledProcessError as cpe:
-            print( 'pkg-config could not find libxml-2.0: failed with error code {} and output:{}'.format( cpe.returncode, cpe.output ) )
-            assert( False )
-        env.ParseConfig( 'pkg-config --libs libxml-2.0' )
-            #Need to strip on xml2-config output. It has a stray \n and that completely screws up scons calling g++
-        baseflags = [ '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden', xml2.strip().split( ' ' ) ]
-        if ( platform.system() == "OpenBSD" ):
-                baseflags = [ '-I/usr/X11R6/include', '-I/usr/local/include', '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden', xml2.strip().split( ' ' ) ]
-        if ( platform.system() == "NetBSD" ) :
-                baseflags = [ '-I/usr/X11R7/include', '-I/usr/include', '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden', xml2.strip().split( ' ' ) ]
-
-        if platform.system() in ['OpenBSD', 'FreeBSD', 'NetBSD']:
+            print('pkg-config could not find libxml-2.0: failed with error code {} and output:{}'.format(cpe.returncode, cpe.output))
+            assert(False)
+        env.ParseConfig('pkg-config --libs libxml-2.0')
+        # Strip stray newline from xml2-config output
+        baseflags = ['-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden'] + xml2.strip().split(' ')
+        
+        sys_platform = platform.system()
+        if sys_platform == "OpenBSD":
+            baseflags = ['-I/usr/X11R6/include', '-I/usr/local/include', '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden'] + xml2.strip().split(' ')
+        elif sys_platform == "NetBSD":
+            baseflags = ['-I/usr/X11R7/include', '-I/usr/include', '-pipe', '-Wall', '-fmessage-length=0', '-fvisibility=hidden'] + xml2.strip().split(' ')
+        
+        if sys_platform in ['OpenBSD', 'FreeBSD', 'NetBSD']:
             baseflags += ['-D__BSD__']
 
-    if useGtk:
-        env.ParseConfig('pkg-config gtk4 --cflags --libs')
-        env.ParseConfig('pkg-config x11 --cflags --libs')
-    else:
-        # always setup at least glib
-        env.ParseConfig('pkg-config glib-2.0 --cflags --libs')
-
-    if useGtkGL:
-        env.ParseConfig('pkg-config mesa-glu --cflags --libs')
-        env.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
-
-    # For macOS M1+ using Homebrew packages
-    if platform.system() == 'Darwin':
-        # Check if running on M1+ architecture
-        if os.uname().machine in ['arm64', 'arm64e']:
-            env.ParseConfig('pkg-config freeglut --cflags --libs')
-            env.ParseConfig('pkg-config glew --cflags --libs')
-
-
-    if ( useJPEG ):
-        env.Append( LIBS = 'jpeg' )
-    if ( usePNG ):
-            pnglibs = 'png'
-            if ( self.platform == 'NetBSD'):
-                    pnglibs = 'png16'
-            env.Append( LIBS = pnglibs.split( ' ' ) )
-            env.ParseConfig( 'pkg-config zlib --cflags --libs' )
-            if ( useZ ):
-                    env.ParseConfig( 'pkg-config zlib --cflags --libs' )
-                    env.Append( CCFLAGS = baseflags )
-                    env.Append( CXXFLAGS = baseflags + [ '-fpermissive', '-fvisibility-inlines-hidden' ] )
-                    env.Append( CPPPATH = [ 'include', 'libs' ] )
-                    env.Append( CPPDEFINES = [ 'Q_NO_STLPORT' ] )
-            if ( config == 'debug' ):
-                env.Append( CFLAGS = [ '-g' ] )
-                env.Append( CXXFLAGS = [ '-g' ] )
-                env.Append( CPPDEFINES = [ '_DEBUG' ] )
+        # Setup GTK
+        if useGtk:
+            # Depending on flag useGTK4, use gtk4 or fallback to gtk2
+            if useGTK4:
+                env.ParseConfig('pkg-config gtk4 --cflags --libs')
             else:
-                env.Append( CFLAGS = [ '-O2', '-g', '-fno-strict-aliasing' ] )
-                env.Append( CXXFLAGS = [ '-O2', '-g', '-fno-strict-aliasing' ] )
+                env.ParseConfig('pkg-config gtk+-2.0 --cflags --libs')
+            # Always add X11 on non-Windows platforms
+            if sys_platform not in ['Windows']:
+                env.ParseConfig('pkg-config x11 --cflags --libs')
+        else:
+            # always setup at least glib
+            env.ParseConfig('pkg-config glib-2.0 --cflags --libs')
 
-            # this lets us catch libjpg and libpng libraries that we put in the same directory as radiant.bin
-            env.Append( LINKFLAGS = '-Wl,-rpath,.' )
-            
-            # On Mac, we pad headers so that we may rewrite them for packaging
-            if self.platform == 'Darwin':
-                env.Append(CFLAGS=['-mmacosx-version-min=11.0'])
-                env.Append(CXXFLAGS=['-mmacosx-version-min=11.0'])
-                env.Append(LINKFLAGS=['-headerpad_max_install_names'])
-            # On Linux ARM64, add any specific flags if needed
-            elif self.platform == 'Linux' and os.uname().machine in ['aarch64', 'arm64']:
-                # Example: set a minimum glibc version if needed, or any architecture-specific flag
-                # Adjust the flags below as appropriate for your Linux ARM64 build environment.
-                env.Append(CFLAGS=['-march=armv8-a'])
-                env.Append(CXXFLAGS=['-march=armv8-a'])
+        if useGtkGL:
+            env.ParseConfig('pkg-config mesa-glu --cflags --libs')
+            env.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
+
+        # For macOS Silicon using Homebrew packages
+        if sys_platform == 'Darwin':
+            if os.uname().machine in ['arm64', 'arm64e']:
+                env.ParseConfig('pkg-config freeglut --cflags --libs')
+                env.ParseConfig('pkg-config glew --cflags --libs')
+        # For Linux ARM64
+        elif sys_platform == 'Linux' and os.uname().machine in ['aarch64', 'arm64']:
+            # Example: append architecture-specific flags; adjust as necessary
+            env.Append(CFLAGS=['-march=armv8-a'])
+            env.Append(CXXFLAGS=['-march=armv8-a'])
+        
+        # Windows-specific settings can be added here.
+        if sys_platform == 'Windows':
+            # Windows-specific adjustments (if any) for x86_64 or arm64.
+            # For example, you might set specific compiler flags or search paths.
+            pass
+
+        # Setup for JPEG, PNG, zlib
+        if useJPEG:
+            env.Append(LIBS=['jpeg'])
+        if usePNG:
+            pnglibs = 'png'
+            if self.platform == 'NetBSD':
+                pnglibs = 'png16'
+            env.Append(LIBS=pnglibs.split())
+            # Always add zlib pkg-config flags as needed.
+            env.ParseConfig('pkg-config zlib --cflags --libs')
+            if useZ:
+                env.ParseConfig('pkg-config zlib --cflags --libs')
+        
+        # Append base flags to compiler flags.
+        env.Append(CCFLAGS=baseflags)
+        env.Append(CXXFLAGS=baseflags + ['-fpermissive', '-fvisibility-inlines-hidden'])
+        
+        # Additional include paths and defines.
+        env.Append(CPPPATH=['include', 'libs'])
+        env.Append(CPPDEFINES=['Q_NO_STLPORT'])
+        
+        # Debug vs Release flags.
+        if config == 'debug':
+            env.Append(CFLAGS=['-g'])
+            env.Append(CXXFLAGS=['-g'])
+            env.Append(CPPDEFINES=['_DEBUG'])
+        else:
+            env.Append(CFLAGS=['-O2', '-g', '-fno-strict-aliasing'])
+            env.Append(CXXFLAGS=['-O2', '-g', '-fno-strict-aliasing'])
+        
+        # Ensure runtime library search path is set.
+        env.Append(LINKFLAGS='-Wl,-rpath,.')
+
+        # On macOS, pad headers so they can be rewritten for packaging.
+        if sys_platform == 'Darwin':
+            env.Append(CFLAGS=['-mmacosx-version-min=11.0'])
+            env.Append(CXXFLAGS=['-mmacosx-version-min=11.0'])
+            env.Append(LINKFLAGS=['-headerpad_max_install_names'])
+        
+        # You might also add Windows-specific or further Linux-specific settings here.
 
     def CheckoutOrUpdate( self, svnurl, path ):
         if ( os.path.exists( path ) ):
