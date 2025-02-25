@@ -15,9 +15,35 @@ if __name__ != '__main__':
 
 import utils
 
-# Existing GTK prefixes
+# Default GTK prefixes (newer versions)
 GTK_PREFIX = 'gtk-4.16.12'
 GTK64_PREFIX = 'gtk-4.16.12_win64'
+
+# If you want to use older versions on certain platforms, update the variables:
+system = platform.system()
+machine = os.uname().machine if hasattr(os, 'uname') else ''
+
+if system == 'Linux':
+    # Example: On Linux AMD64, use older version
+    if machine in ['x86_64', 'AMD64']:
+        GTK_PREFIX = 'gtk-2.24.10'
+    elif machine in ['aarch64', 'arm64']:
+        # For Linux ARM64, you might want to keep the newer version or adjust accordingly
+        GTK_PREFIX = 'gtk-4.16.12'
+elif system == 'Windows':
+    # On Windows, decide based on architecture if needed.
+    # Here, we assume x86_64 is used for 64-bit Windows.
+    GTK64_PREFIX = 'gtk-2.22.1_win64'
+elif system == 'Darwin':
+    # For macOS, you might target a specific GTK version for Apple Silicon (if installed differently)
+    if machine in ['arm64', 'arm64e']:
+        GTK_PREFIX = 'gtk-4.0_macos_silicon'
+    else:
+        GTK_PREFIX = 'gtk-4.16.12'
+
+print("GTK_PREFIX =", GTK_PREFIX)
+print("GTK64_PREFIX =", GTK64_PREFIX)
+
 
 # Add a GTK prefix for macOS Silicon (ARM64) using GTK-4.0
 if platform.system() == 'Darwin' and os.uname().machine in ['arm64', 'arm64e']:
