@@ -394,8 +394,24 @@ def emit(self):
             env.Append(CFLAGS=['-mmacosx-version-min=11.0'])
             env.Append(CXXFLAGS=['-mmacosx-version-min=11.0'])
             env.Append(LINKFLAGS=['-headerpad_max_install_names'])
-        
-        # You might also add Windows-specific or further Linux-specific settings here.
+            
+        # Linux ARM64 specific settings
+        elif sys_platform == 'Linux' and os.uname().machine in ['aarch64', 'arm64']:
+            # For Linux ARM64, you may want to ensure proper architecture flag and other adjustments.
+            env.Append(CFLAGS=['-march=armv8-a'])
+            env.Append(CXXFLAGS=['-march=armv8-a'])
+            # Optionally, add a linker flag if required for ARM64 systems.
+            env.Append(LINKFLAGS=['-Wl,-z,now'])
+
+        # Windows ARM64 specific settings
+        elif sys_platform == 'Windows':
+            # You can differentiate Windows ARM64 builds if your build environment sets a flag or environment variable.
+            # For this example, let's assume you have an environment variable 'WIN_ARM64' defined for Windows ARM64 builds.
+            if os.environ.get('WIN_ARM64', '0') == '1':
+                # Append flags that might be needed for Windows ARM64 compilation/linking.
+                env.Append(CCFLAGS=['/arch:ARM64'])
+                # Windows linker flags for ARM64 might differ; adjust as needed:
+                env.Append(LINKFLAGS=['/ARM64'])
 
     def CheckoutOrUpdate( self, svnurl, path ):
         if ( os.path.exists( path ) ):
