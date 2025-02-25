@@ -77,8 +77,10 @@ if os.path.exists(conf_filename):
             pass
 
 config_statements = sys.argv[1:]
+config_statements = sys.argv[1:]
 active_configs = config.ConfigParser().parseStatements(active_configs, config_statements)
-assert(len(active_configs) >= 1)
+active_configs = config.ConfigParser().parseStatements(active_configs, config_statements)
+assert len(active_configs) >= 1, "No active configurations found!"
 
 # Append extra platform info to each configuration
 for c in active_configs:
