@@ -76,13 +76,19 @@ class Config:
     
     # those are global to each config
     self.platform = platform.system()
+    use_clang = os.environ.get("USE_CLANG", "0") == "1"  # or another method to decide
+
     if self.platform in ['FreeBSD', 'OpenBSD', 'NetBSD']:
         self.cc = 'cc'
         self.cxx = 'c++'
     else:
-        self.cc = 'gcc'
-        self.cxx = 'g++'
-    
+        if use_clang:
+            self.cc = 'clang'
+            self.cxx = 'clang++'
+        else:
+            self.cc = 'gcc'
+            self.cxx = 'g++'
+
     self.install_directory = 'install'
 
     # platforms for which to assemble a setup
